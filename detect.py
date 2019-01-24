@@ -6,7 +6,7 @@ import serial
 def variance(image):
 	return cv2.Laplacian(image, cv2.CV_64F).var()
 
-ser1 = serial.Serial('/dev/cu.usbmodem143301', 9600) #set the correct port
+ser1 = serial.Serial('/dev/cu.usbmodem143401', 9600) #set the correct port
 #ser1.write('f'.encode())
 
 faceCascade = cv2.CascadeClassifier('frontal.xml')
@@ -16,6 +16,8 @@ sideCascade = cv2.CascadeClassifier('profile.xml')
 cap = cv2.VideoCapture(0)
 while(cap.isOpened()):
     ret, frame = cap.read()
+    if(ret ==False):
+    	continue
     #frame =  cv2.blur(frame, (100,100))
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     fm = variance(gray)
@@ -42,8 +44,8 @@ while(cap.isOpened()):
     
     height, width, channels = frame.shape
     if(len(faces)==0):
-    	ser1.write('c'.encode())
-    	print("c")
+    	ser1.write('cc\n'.encode())
+    	print("cc\n")
     fudge = 50
     for (x,y,w,h) in faces:
         pos1  = x+w/2
