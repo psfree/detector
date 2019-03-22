@@ -22,7 +22,7 @@ def intersection(rect1, rect2):
         return True
 
 
-# ser1 = serial.Serial('/dev/cu.usbmodem143301', 9600) #set the correct port
+ser1 = serial.Serial('/dev/cu.usbmodem143401', 9600) #set the correct port
 ##ser1.write('f'.encode())
 
 faceCascade = cv2.CascadeClassifier('frontal.xml')
@@ -47,7 +47,7 @@ while cap.isOpened():
     fm = variance(gray)
     
     control = pid(fm)
-    #print(control)
+    print(control)
     
     #control the motors for autofocus here
     #send control output to the arduino
@@ -144,9 +144,9 @@ while cap.isOpened():
             s2 = b'l'
 
         s = struct.pack("<ccfc", s1,s2,control, b'\n')
-        # ser1.write(s.encode())
+        ser1.write(s)
 
-        print(s)
+        #print(s)
         break
     cv2.imshow('frame', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
