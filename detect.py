@@ -4,13 +4,16 @@ import numpy as np
 import cv2
 import struct
 import serial
+import serial.tools.list_ports
 from PID import PID
 
-
+#variance: this function calculates the variance of the laplacian of an image frame
+# which is useful for detecting the amount of blur in the image
 def variance(image):
     return cv2.Laplacian(image, cv2.CV_64F).var()
 
-
+#intersection: this function is used to calculate whether 2 rects intersect each other
+# which is useful for checking if different tracking features are detecting the same person
 def intersection(rect1, rect2):
     try:
         p1 = Polygon([(rect1[0], rect1[1]), (rect1[1], rect1[1]),
@@ -21,21 +24,44 @@ def intersection(rect1, rect2):
     except:
         return True
 
+#this is the main body of the code
+#to start we begin by enumerating the serial ports that are available and allowing the
+#user to select which one to use
+ports = list(serial.tools.list_ports.comports())
 
-ser1 = serial.Serial('/dev/cu.usbmodem143401', 9600) #set the correct port
-##ser1.write('f'.encode())
+i=0
+for p in ports:
+    print(str(i)+": "+str(p))
+    i=i+1
+while True:
+    sel = input("Select a number from the list to choose the Arduino port: ")
+    try:
+        j = int(sel)
+        if j<0 or j>len(ports):
+            print("Invalid number selected, try again")
+        else:
+            break
+    except ValueError:
+        print("Please choose a number from the list")
+portchoice = str(ports[j].device)
+ser1 = serial.Serial(portchoice, 9600) #set the correct port
 
+#load the tracking data from the xml files
 faceCascade = cv2.CascadeClassifier('frontal.xml')
 sideCascade = cv2.CascadeClassifier('profile.xml')
 upperbodyCascade = cv2.CascadeClassifier('upperbody.xml')
 
-# cap = cv2.VideoCapture('bus.mp4')
 
+#open the image capture device
 cap = cv2.VideoCapture(0)
 
+#create  a PID controller for use with zoom and focus
 pid = PID(1, 0.1, 0.05, setpoint=1000) #tweak me. hopefully setpoint being high will not cause problems
 pid.sample_time = 0.05 #20fps or about double the expected sampling time. may need tweaking
 
+
+#main loop of the code. this reads a frame in, processes it and performs the 4 tracking operations
+#it ends by sending the relevant data to the arduino over the serial port
 while cap.isOpened():
     (ret, frame) = cap.read()
     if ret == False:
@@ -152,6 +178,7 @@ while cap.isOpened():
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+#gracefully close the camera capture when exiting
 cap.release()
 cv2.destroyAllWindows()
 
