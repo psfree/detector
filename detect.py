@@ -5,6 +5,7 @@ import cv2
 import struct
 import serial
 import serial.tools.list_ports
+import datetime
 from PID import PID
 
 #variance: this function calculates the variance of the laplacian of an image frame
@@ -37,7 +38,7 @@ while True:
     sel = input("Select a number from the list to choose the Arduino port: ")
     try:
         j = int(sel)
-        if j<0 or j>len(ports):
+        if j<0 or j>len(ports)-1:
             print("Invalid number selected, try again")
         else:
             break
@@ -53,27 +54,33 @@ upperbodyCascade = cv2.CascadeClassifier('upperbody.xml')
 
 
 #open the image capture device
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 #create  a PID controller for use with zoom and focus
 pid = PID(1, 0.1, 0.05, setpoint=1000) #tweak me. hopefully setpoint being high will not cause problems
 pid.sample_time = 0.05 #20fps or about double the expected sampling time. may need tweaking
 
-
+storetime = datetime.datetime.now()
+framecount=0
+fps = 20
 #main loop of the code. this reads a frame in, processes it and performs the 4 tracking operations
 #it ends by sending the relevant data to the arduino over the serial port
 while cap.isOpened():
     (ret, frame) = cap.read()
     if ret == False:
         continue
-
+    framecount+=1
+    if(datetime.datetime.now()- storetime).seconds > 1:
+        storetime = datetime.datetime.now()
+        fps = framecount
+        framecount =0
     # frame =  cv2.blur(frame, (100,100))
     height, width, channels = frame.shape
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     fm = variance(gray)
     
     control = pid(fm)
-    print(control)
+    #print(control)
     
     #control the motors for autofocus here
     #send control output to the arduino
@@ -88,8 +95,18 @@ while cap.isOpened():
         (0, 0, 0xFF),
         3,
         )
+    text = 'FPS'
+    cv2.putText(
+        frame,
+        '{}: {:.2f}'.format(text, fps),
+        (500, 30),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (0, 0, 0xFF),
+        3,
+        )
     faces = faceCascade.detectMultiScale(gray, scaleFactor=1.1,
-            minNeighbors=5, minSize=(100, 100),
+            minNeighbors=10, minSize=(60, 60),
             flags=cv2.CASCADE_SCALE_IMAGE)
     profiles = sideCascade.detectMultiScale(gray, scaleFactor=1.1,
             minNeighbors=5, minSize=(200, 200),
@@ -123,57 +140,28 @@ while cap.isOpened():
     			bodies=[]
     		fprofiles=[]
     	profiles = []
-    
-    for a in faces:
-        for b in profiles:
-            if intersection(a, b):
-                sections.append(b)
-        for c in fprofiles:
-            if intersection(a, c):
-                sections.append(c)
-        for d in bodies:
-            if intersection(a, d):
-                sections.append(d)
-        if len(sections) > 0:
-        	sections.append(a)
-        	break
-    cx = 0
-    cy = 0
-    for (x, y, w, h) in sections:
-        cx = (cx + x + w / 2) / 2
-        cy = (cy + y + h / 2) / 2
+    cx = width/2
+    cy = height/2
+    for (x,y,w,h) in faces:
+    	cx = x + w/2
+    	cy= y+h/2
+    	break
+    fudge=30
+    s1 = b'c'
+    s2 = b'c'
+    if cy < (height / 2 - fudge):
+        s1 = b'd'
+    elif cy > (height / 2 + fudge):
+        s1 = b'u'
+
+    if cx > (width / 2 + fudge):
+        s2 = b'l'
+    elif cx < (width / 2 - fudge):
+        s2 = b'r'
 	
-    #print(cx)
-    (height, width, channels) = frame.shape
-    if len(faces) == 0:
-        zzzz=1
-        # ser1.write('cc\n'.encode())
-
-        #print ('cc\n')
-    fudge = 50
-    
-    
-	
-    for (x, y, w, h) in faces:  #does not currently use intersection data
-        pos1 = x + w / 2
-        pos2 = y + h / 2
-        s1 = b'c'
-        s2 = b'c'
-        if pos2 < height / 2 - fudge:
-            s1 = b'u'
-        elif pos2 > height / 2 + fudge:
-            s1 = b'd'
-
-        if pos1 < width / 2 - fudge:
-            s2 = b'r'
-        elif pos1 > width / 2 + fudge:
-            s2 = b'l'
-
-        s = struct.pack("<ccfc", s1,s2,control, b'\n')
-        ser1.write(s)
-
-        #print(s)
-        break
+    print(str(s1))
+    s = struct.pack("<ccfc", s1,s2,control, b'\n')
+    ser1.write(s)
     cv2.imshow('frame', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
