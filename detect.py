@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import imutils
 from imutils import paths
 import numpy as np
 import cv2
@@ -54,7 +55,7 @@ upperbodyCascade = cv2.CascadeClassifier('upperbody.xml')
 
 
 #open the image capture device
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 
 #create  a PID controller for use with zoom and focus
 pid = PID(1, 0.1, 0.05, setpoint=1000) #tweak me. hopefully setpoint being high will not cause problems
@@ -75,6 +76,7 @@ while cap.isOpened():
         fps = framecount
         framecount =0
     # frame =  cv2.blur(frame, (100,100))
+    frame = imutils.resize(frame, width=720)
     height, width, channels = frame.shape
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     fm = variance(gray)

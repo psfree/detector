@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import pdb
+import imutils
 from imutils import paths
 import numpy as np
 import cv2
@@ -198,7 +199,7 @@ def main():
     
     # open the image capture device
     
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     (ret, frame) = cap.read()
 
     event_interval = 1.5
@@ -227,7 +228,7 @@ def main():
             framecount =0
             
             
-    
+        frame = imutils.resize(frame, width=720)
         (boxes, detect_new) = tracking.boxframes(frame)
         color = (GREEN if detect_new else BLUE)
         draw_boxes(frame, boxes, color)
@@ -243,10 +244,10 @@ def main():
         # control the motors for autofocus here
         # send control output to the arduino
     
-        text = 'Blur'
+        text = 'FPS'
         cv2.putText(
             frame,
-            '{}: {:.2f}'.format(text, fm),
+            '{}: {:.2f}'.format(text, fps),
             (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
@@ -254,16 +255,7 @@ def main():
             3,
             )
             
-        text = 'FPS'
-        cv2.putText(
-            frame,
-            '{}: {:.2f}'.format(text, fps),
-            (500, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0, 0, 0xFF),
-            3,
-            )
+        
         fudge=30
         cx = tracking.cx
         cy = tracking.cy
